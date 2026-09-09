@@ -4,6 +4,7 @@ import { MutegroupRecord } from './mutegroups.js'
 import { CleanfeedRecord } from './cleanfeeds.js'
 import { AutomixRecord } from './automix.js'
 import { SourceList } from './sourcelist.js'
+import { MixerOptions } from './options.js'
 
 export const Mixer = z.object({
 	_lastloadedsnap: z.string().optional().default('-'),
@@ -11,7 +12,7 @@ export const Mixer = z.object({
 	automix: AutomixRecord.optional().default({}),
 	cleanfeeds: CleanfeedRecord.optional().default({}),
 	mutegroups: MutegroupRecord.optional().default({}),
-	//	options: optionsRecord.optional().default({}),
+	options: MixerOptions.optional().default({}),
 	//  faders: faderRecord.optional().default({}),
 	sourcelist: SourceList.optional().default([]),
 })
