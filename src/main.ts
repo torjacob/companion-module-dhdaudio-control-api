@@ -23,6 +23,8 @@ import * as selector from './components/selector.js'
 import * as snapshot from './components/snapshot.js'
 import * as logics from './components/logics.js'
 import * as genericAction from './components/generic-action.js'
+import { fetchMixers } from './control-api/mixers.js'
+import * as faderLevel2 from './components/fader-level2.js'
 
 const CONNECTION_TIMEOUT_MS = 5000
 
@@ -125,6 +127,16 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				this.assertCurrentAttempt(attemptId)
 				const pots = await fetchPots(this).catch(() => null)
 				this.assertCurrentAttempt(attemptId)
+
+				const mixers = await fetchMixers(this).catch(() => null)
+				this.assertCurrentAttempt(attemptId)
+
+				if (mixers) {
+					const faderLevel2Config = faderLevel2.init(this, mixers)
+					varDefinitions.push(...faderLevel2Config.variables)
+					actionDefinitions = { ...actionDefinitions, ...faderLevel2Config.actions }
+					presetDefinitions = { ...presetDefinitions, ...faderLevel2Config.presets }
+				}
 
 				if (channels) {
 					const channelOnOffConfig = channelOnOff.init(this, channels)
