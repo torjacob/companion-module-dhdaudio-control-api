@@ -5,7 +5,7 @@ export const Cleanfeed = z.object({
 	_active: z.boolean(),
 	cut: z.boolean(),
 	n: z.boolean(),
-	outgain: z.numnber(),
+	outgain: z.number(),
 	outsel: z.boolean(),
 	srcsel: z.number(),
 })

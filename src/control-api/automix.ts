@@ -3,11 +3,11 @@ import type { ModuleInstance } from '../main.js'
 
 export const Automix = z.object({
 	_active: z.boolean(),
-	hold: z.numnber(),
+	hold: z.number(),
 	maxattenuation: z.number(),
 	passiveattenuation: z.number(),
-	ratio: z.numnber(),
-	release: z.numnber(),
+	ratio: z.number(),
+	release: z.number(),
 })
 
 const AutomixId = z.string()
