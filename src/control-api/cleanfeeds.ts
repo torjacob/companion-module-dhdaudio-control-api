@@ -11,7 +11,7 @@ export const Cleanfeed = z.object({
 })
 
 const CleanfeedId = z.string()
-export const CleanfeedRecord = z.record(CleanfeedId, CleanFeed)
+export const CleanfeedRecord = z.record(CleanfeedId, Cleanfeed)
 export type CleanfeedRecord = z.infer<typeof CleanfeedRecord>
 
 const ResponseSuccess = z.object({

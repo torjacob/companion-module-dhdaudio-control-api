@@ -12,7 +12,7 @@ export const Mixer = z.object({
 	automix: AutomixRecord.optional().default({}),
 	cleanfeeds: CleanfeedRecord.optional().default({}),
 	mutegroups: MutegroupRecord.optional().default({}),
-	options: MixerOptions.optional().default({}),
+	options: MixerOptions,
 	//  faders: faderRecord.optional().default({}),
 	sourcelist: SourceList.optional().default([]),
 })

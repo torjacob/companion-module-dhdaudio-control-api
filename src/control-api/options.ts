@@ -1,22 +1,26 @@
 import * as z from 'zod'
 import type { ModuleInstance } from '../main.js'
 
-export const PflOptions = z.object({
-	afl: z.boolean().optional().default(false),
-	aflwhenon: z.boolean().optional(),
-	mix: z.boolean().optional().default(false),
-	reset: z.boolean().optional().default(false),
-	resetfader: z.boolean().optional().default(false),
-	return: z.boolean().optional().default(false),
-})
+export const PflOptions = z
+	.object({
+		afl: z.boolean().optional().default(false),
+		aflwhenon: z.boolean().optional(),
+		mix: z.boolean().optional().default(false),
+		reset: z.boolean().optional().default(false),
+		resetfader: z.boolean().optional().default(false),
+		return: z.boolean().optional().default(false),
+	})
+	.prefault({})
 
 export type PflOptions = z.infer<typeof PflOptions>
 
-export const MixerOptions = z.object({
-	directoffair: z.boolean().optional().default(false),
-	pfl1: PflOptions.optional().default({}),
-	pfl2: PflOptions.optional().default({}),
-})
+export const MixerOptions = z
+	.object({
+		directoffair: z.boolean().optional().default(false),
+		pfl1: PflOptions,
+		pfl2: PflOptions,
+	})
+	.prefault({})
 
 export type MixerOptions = z.infer<typeof MixerOptions>
 
