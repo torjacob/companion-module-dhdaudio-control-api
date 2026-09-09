@@ -1,12 +1,13 @@
 import * as z from 'zod'
 import type { ModuleInstance } from '../main.js'
 import { MutegroupRecord } from './mutegroups.js'
+import { CleanfeedRecord } from './cleanfeeds.js'
 
 export const Mixer = z.object({
 	_lastloadedsnap: z.string().optional().default('-'),
 	_name: z.string().optional().default('-'),
 	//	automix: automixRecord.optional().default({}),
-	//	cleanfeeds: cleanfeedRecord.optional().default({}),
+	cleanfeeds: CleanfeedRecord.optional().default({}),
 	mutegroups: MutegroupRecord.optional().default({}),
 	//	options: optionsRecord.optional().default({}),
 	//  faders: faderRecord.optional().default({}),
