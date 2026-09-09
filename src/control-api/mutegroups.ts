@@ -1,21 +1,9 @@
 import * as z from 'zod'
 import type { ModuleInstance } from '../main.js'
-import { MutegroupRecord } from './mutegroups.js'
 
-export const Mixer = z.object({
-	_lastloadedsnap: z.string().optional().default('-'),
-	_name: z.string().optional().default('-'),
-	//	automix: automixRecord.optional().default({}),
-	//	cleanfeeds: cleanfeedRecord.optional().default({}),
-	mutegroups: MutegroupRecord.optional().default({}),
-	//	options: optionsRecord.optional().default({}),
-	//  faders: faderRecord.optional().default({}),
-	//  sourcelist: sourceArray.optional().default([]),
-})
-
-const MixerId = z.string()
-const MixerRecord = z.record(MixerId, Mixer)
-export type MixerRecord = z.infer<typeof MixerRecord>
+const MutegroupId = z.string()
+export const MutegroupRecord = z.record(MutegroupId, z.boolean())
+export type MutegroupRecord = z.infer<typeof MutegroupRecord>
 
 const ResponseSuccess = z.object({
 	msgID: z.any(),
@@ -23,7 +11,7 @@ const ResponseSuccess = z.object({
 	path: z.string(),
 
 	success: z.literal(true),
-	payload: MixerRecord,
+	payload: MutegroupRecord,
 })
 
 const ResponseError = z.object({
@@ -40,9 +28,9 @@ const ResponseError = z.object({
 
 const Response = z.union([ResponseSuccess, ResponseError])
 
-export async function fetchMixers(self: ModuleInstance): Promise<MixerRecord> {
+export async function fetchMutegroups(self: ModuleInstance, mixerId = '0'): Promise<MutegroupRecord> {
 	return new Promise((resolve, reject) => {
-		self.websocket.get('/audio/mixers', (response) => {
+		self.websocket.get(`/audio/mixers/${mixerId}/mutegroups/`, (response) => {
 			const result = z.safeParse(Response, response)
 			if (!result.success) {
 				return reject(new Error(result.error.message))
