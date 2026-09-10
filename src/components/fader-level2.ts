@@ -1,3 +1,4 @@
+import * as z from 'zod'
 import {
 	combineRgb,
 	type CompanionActionDefinitions,
@@ -6,6 +7,7 @@ import {
 	type CompanionPresetDefinitions,
 	type CompanionVariableDefinition,
 	type SomeCompanionActionInputField,
+	type SomeCompanionFeedbackInputField,
 } from '@companion-module/base'
 import type { FaderRecord } from '../control-api/faders.js'
 import type { MixerRecord } from '../control-api/mixers.js'
@@ -37,7 +39,7 @@ export function init(
 	const faderEntries = getFaderEntries(mixers)
 
 	const variables = genVariables(faderEntries)
-	const feedback = genFeedbacks(self, faderEntries)
+	const feedback = genFeedbacks(self, mixers)
 	const actions = genActions(self, mixers)
 	const presets = genPresets(faderEntries)
 
@@ -47,17 +49,100 @@ export function init(
 function genVariables(
 	faderEntries: Array<[string, string, FaderRecord[string]]>,
 ): ReadonlyArray<CompanionVariableDefinition> {
-	return faderEntries.map(([mixerId, faderId, values]) => ({
-		variableId: `fader_m${mixerId}_f${faderId}_level`,
-		name: `Mixer ${mixerId} Fader ${getFaderLabel(faderId, values)} Level`,
-	}))
+	return faderEntries.flatMap(([mixerId, faderId, values]) => {
+		const label = getFaderLabel(faderId, values)
+		return [
+			{
+				variableId: `fader_${mixerId}.${faderId}_level`,
+				name: `Fader ${mixerId}.${faderId} (${label}) Level`,
+			},
+			{
+				variableId: `fader_${mixerId}.${faderId}_on`,
+				name: `Fader ${mixerId}.${faderId} (${label}) On State`,
+			},
+		]
+	})
 }
 
-function genFeedbacks(
-	_self: ModuleInstance,
-	_faderEntries: Array<[string, string, FaderRecord[string]]>,
-): CompanionFeedbackDefinitions {
-	return {}
+function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedbackDefinitions {
+	const mixerEntries = Object.entries(mixers)
+	const defaultMixer = mixerEntries[0]?.[0] ?? '0'
+
+	const mixerDropdown: SomeCompanionFeedbackInputField = {
+		id: 'mixerId',
+		type: 'dropdown',
+		label: 'Mixer',
+		default: defaultMixer,
+		choices: mixerEntries.map(([mId, mixer]) => ({
+			id: mId,
+			label: mixer._name ? `${mId} - ${mixer._name}` : `Mixer ${mId}`,
+		})),
+	}
+
+	const faderDropdowns: SomeCompanionFeedbackInputField[] = mixerEntries.map(([mixerId, mixer]) => {
+		const faders = Object.entries(mixer.faders ?? {})
+		return {
+			id: `faderId_m${mixerId}`,
+			type: 'dropdown',
+			label: 'Fader',
+			default: faders[0]?.[0] ?? '0',
+			choices: faders.map(([fId, val]) => ({
+				id: fId,
+				label: `${fId} - ${getFaderLabel(fId, val)}`,
+			})),
+			isVisibleExpression: `$(options:mixerId) == '${mixerId}'`,
+		}
+	})
+	return {
+		new_fader_on_off: {
+			name: 'Fader On/Off',
+			type: 'boolean',
+			defaultStyle: {
+				bgcolor: combineRgb(102, 0, 0),
+			},
+			options: [mixerDropdown, ...faderDropdowns],
+			callback: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const currentOn = self.getVariableValue(`fader_${mixerId}.${faderId}_on`)
+				return currentOn === true || currentOn === 'true'
+			},
+			subscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+
+				if (!mixers[mixerId]) return
+
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const path = `/audio/mixers/${mixerId}/faders/${faderId}/on`
+
+				self.websocket.subscribe(path)
+
+				self.websocket.get(
+					path,
+					(response) => {
+						let onState: boolean | undefined
+
+						if (typeof response.payload === 'boolean') {
+							onState = response.payload
+						} else if (typeof response.payload === 'object' && response.payload !== null) {
+							const parsed = z.object({ on: z.boolean() }).safeParse(response.payload)
+							if (parsed.success) onState = parsed.data.on
+						}
+
+						if (onState !== undefined) {
+							self.setVariableValues({
+								[`fader_${mixerId}.${faderId}_on`]: onState,
+							})
+							self.checkFeedbacks('new_fader_on_off')
+						}
+					},
+					(response: { error: { message: string } }) => {
+						self.log('warn', `Failed fetching initial state for ${path}: ${response.error.message}`)
+					},
+				)
+			},
+		},
+	}
 }
 
 function genActions(self: ModuleInstance, mixers: MixerRecord): CompanionActionDefinitions {

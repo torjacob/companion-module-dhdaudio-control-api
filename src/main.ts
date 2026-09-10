@@ -134,6 +134,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				if (mixers) {
 					const faderLevel2Config = faderLevel2.init(this, mixers)
 					varDefinitions.push(...faderLevel2Config.variables)
+					feedbackDefinitions = { ...feedbackDefinitions, ...faderLevel2Config.feedback }
 					actionDefinitions = { ...actionDefinitions, ...faderLevel2Config.actions }
 					presetDefinitions = { ...presetDefinitions, ...faderLevel2Config.presets }
 				}
@@ -228,6 +229,7 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 		potValue.onSubscriptionUpdate(this, update)
 		logics.onSubscriptionUpdate(this, update)
 		genericAction.onSubscriptionUpdate(this, update)
+		channelOnOff.onSubscriptionUpdate(this, update)
 	}
 
 	async destroy(): Promise<void> {
