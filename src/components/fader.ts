@@ -38,43 +38,85 @@ interface BooleanParamConfig {
 }
 
 const BOOLEAN_PARAMS: BooleanParamConfig[] = [
-	{ id: 'new_fader_on_off', name: 'On', pathKey: 'on', variableSuffix: 'on', varName: 'On State' },
+	{ id: 'fader_on_off', name: 'On', pathKey: 'on', variableSuffix: 'on', varName: 'On State' },
 	{
-		id: 'new_fader_faderstart',
+		id: 'fader_faderstart',
 		name: 'Faderstart',
 		pathKey: '_faderstart',
 		variableSuffix: 'faderstart',
 		varName: 'Faderstart State',
 	},
 	{
-		id: 'new_fader_offair',
+		id: 'fader_offair',
 		name: 'OffAir',
 		pathKey: 'offair',
 		variableSuffix: 'offair',
 		varName: 'OffAir State',
 	},
-	{ id: 'new_fader_pfl1', name: 'PFL1', pathKey: 'pfl1', variableSuffix: 'pfl1', varName: 'PFL1 State' },
-	{ id: 'new_fader_pfl2', name: 'PFL2', pathKey: 'pfl2', variableSuffix: 'pfl2', varName: 'PFL2 State' },
+	{ id: 'fader_pfl1', name: 'PFL1', pathKey: 'pfl1', variableSuffix: 'pfl1', varName: 'PFL1 State' },
+	{ id: 'fader_pfl2', name: 'PFL2', pathKey: 'pfl2', variableSuffix: 'pfl2', varName: 'PFL2 State' },
 	{
-		id: 'new_fader_pool_available',
+		id: 'fader_pool_available',
 		name: 'Pool Available',
 		pathKey: '_pool_available',
 		variableSuffix: 'poolavailable',
 		varName: 'Pool State',
 	},
 	{
-		id: 'new_fader_readystate',
+		id: 'fader_readystate',
 		name: 'Ready',
 		pathKey: '_readystate',
 		variableSuffix: 'readystate',
 		varName: 'Readystate',
 	},
 	{
-		id: 'new_fader_altinput',
+		id: 'fader_altinput',
 		name: 'Altinput',
 		pathKey: 'altinput',
 		variableSuffix: 'altinput',
 		varName: 'Altinput State',
+	},
+	{
+		id: 'fader_bypass',
+		name: 'Bypass',
+		pathKey: 'bypass',
+		variableSuffix: 'bypass',
+		varName: 'Bypass State',
+	},
+	{
+		id: 'fader_isolate',
+		name: 'Isolate',
+		pathKey: 'isolate',
+		variableSuffix: 'isolate',
+		varName: 'Isolate State',
+	},
+	{
+		id: 'fader_memo',
+		name: 'Memo',
+		pathKey: 'memo',
+		variableSuffix: 'memo',
+		varName: 'Memo State',
+	},
+	{
+		id: 'fader_preparation',
+		name: 'Preparation',
+		pathKey: 'preparation',
+		variableSuffix: 'preparation',
+		varName: 'Preparation State',
+	},
+	{
+		id: 'fader_solo',
+		name: 'Solo',
+		pathKey: 'solo',
+		variableSuffix: 'solo',
+		varName: 'Solo State',
+	},
+	{
+		id: 'fader_voice',
+		name: 'Voice',
+		pathKey: 'voice',
+		variableSuffix: 'voice',
+		varName: 'Voice State',
 	},
 ]
 
@@ -219,7 +261,7 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 				self.websocket.unsubscribe(`/audio/mixers/${mixerId}/faders/${faderId}/${stateKey}`)
 			},
 		},
-		new_fader_level: {
+		fader_level: {
 			name: 'Fader State: Level',
 			type: 'value',
 			options: [mixerDropdown, ...faderDropdowns],
@@ -252,7 +294,7 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 							self.setVariableValues({
 								[`fader_${mixerId}.${faderId}_level`]: levelVal,
 							})
-							self.checkFeedbacks('new_fader_level')
+							self.checkFeedbacks('fader_level')
 						}
 					},
 					(response: { error: { message: string } }) => {
