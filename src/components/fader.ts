@@ -435,7 +435,7 @@ function genActions(self: ModuleInstance, mixers: MixerRecord): CompanionActionD
 function genPresets(faderEntries: Array<[string, string, FaderRecord[string]]>): CompanionPresetDefinitions {
 	return faderEntries.reduce((acc, [mixerId, faderId, values]) => {
 		const label = getFaderLabel(faderId, values)
-		const presetKey = `fader-level2-0db-m${mixerId}-f${faderId}`
+		const presetKey = `fader-0db-f${mixerId}.${faderId}`
 
 		return {
 			...acc,
@@ -481,10 +481,12 @@ export function onSubscriptionUpdate(self: ModuleInstance, update: ResponseSubsc
 					faders: z.record(
 						z.string(),
 						z.object({
-							on: z.boolean().optional(),
-							offair: z.boolean().optional(),
 							_faderstart: z.boolean().optional(),
 							fader: z.number().optional(),
+							offair: z.boolean().optional(),
+							on: z.boolean().optional(),
+							pfl1: z.boolean().optional(),
+							pfl2: z.boolean().optional(),
 						}),
 					),
 				}),
@@ -504,6 +506,18 @@ export function onSubscriptionUpdate(self: ModuleInstance, update: ResponseSubsc
 			}
 			if (fader.fader !== undefined) {
 				variableUpdates[`fader_${mixerId}.${faderId}_level`] = fader.fader
+			}
+			if (fader._faderstart !== undefined) {
+				variableUpdates[`fader_${mixerId}.${faderId}_faderstart`] = fader._faderstart
+			}
+			if (fader.offair !== undefined) {
+				variableUpdates[`fader_${mixerId}.${faderId}_offair`] = fader.offair
+			}
+			if (fader.pfl1 !== undefined) {
+				variableUpdates[`fader_${mixerId}.${faderId}_pfl1`] = fader.pfl1
+			}
+			if (fader.pfl2 !== undefined) {
+				variableUpdates[`fader_${mixerId}.${faderId}_pfl2`] = fader.pfl2
 			}
 		})
 	})
