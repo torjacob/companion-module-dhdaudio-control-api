@@ -332,17 +332,7 @@ export function onSubscriptionUpdate(self: ModuleInstance, update: ResponseSubsc
 			mixers: z.record(
 				z.string(),
 				z.object({
-					faders: z.record(
-						z.string(),
-						z.object({
-							_faderstart: z.boolean().optional(),
-							fader: z.number().optional(),
-							offair: z.boolean().optional(),
-							on: z.boolean().optional(),
-							pfl1: z.boolean().optional(),
-							pfl2: z.boolean().optional(),
-						}),
-					),
+					faders: z.record(z.string(), z.record(z.string(), z.unknown())),
 				}),
 			),
 		}),
@@ -355,24 +345,16 @@ export function onSubscriptionUpdate(self: ModuleInstance, update: ResponseSubsc
 
 	Object.entries(parsed.data.audio.mixers).forEach(([mixerId, mixer]) => {
 		Object.entries(mixer.faders).forEach(([faderId, fader]) => {
-			if (fader.on !== undefined) {
-				variableUpdates[`fader_${mixerId}.${faderId}_on`] = fader.on
-			}
-			if (fader.fader !== undefined) {
+			if (typeof fader.fader === 'number') {
 				variableUpdates[`fader_${mixerId}.${faderId}_level`] = fader.fader
 			}
-			if (fader._faderstart !== undefined) {
-				variableUpdates[`fader_${mixerId}.${faderId}_faderstart`] = fader._faderstart
-			}
-			if (fader.offair !== undefined) {
-				variableUpdates[`fader_${mixerId}.${faderId}_offair`] = fader.offair
-			}
-			if (fader.pfl1 !== undefined) {
-				variableUpdates[`fader_${mixerId}.${faderId}_pfl1`] = fader.pfl1
-			}
-			if (fader.pfl2 !== undefined) {
-				variableUpdates[`fader_${mixerId}.${faderId}_pfl2`] = fader.pfl2
-			}
+
+			BOOLEAN_PARAMS.forEach((config) => {
+				const val = fader[config.pathKey]
+				if (typeof val === 'boolean') {
+					variableUpdates[`fader_${mixerId}.${faderId}_${config.variableSuffix}`] = val
+				}
+			})
 		})
 	})
 
