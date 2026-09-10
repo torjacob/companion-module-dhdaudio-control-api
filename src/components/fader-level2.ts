@@ -80,6 +80,10 @@ function genVariables(
 				variableId: `fader_${mixerId}.${faderId}_faderstart`,
 				name: `Fader ${mixerId}.${faderId} (${label}) Faderstart State`,
 			},
+			{
+				variableId: `fader_${mixerId}.${faderId}_offair`,
+				name: `Fader ${mixerId}.${faderId} (${label}) OffAir State`,
+			},
 		]
 	})
 }
@@ -115,7 +119,7 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 	})
 	return {
 		new_fader_on_off: {
-			name: 'Fader On/Off',
+			name: 'Fader State: On',
 			type: 'boolean',
 			defaultStyle: {
 				bgcolor: combineRgb(102, 0, 0),
@@ -153,7 +157,7 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 			},
 		},
 		new_fader_faderstart: {
-			name: 'Fader faderstart (On / Off)',
+			name: 'Fader State: Faderstart',
 			type: 'boolean',
 			defaultStyle: {
 				bgcolor: combineRgb(102, 0, 0),
@@ -190,8 +194,46 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 				)
 			},
 		},
+		new_fader_offair: {
+			name: 'Fader State: OffAir',
+			type: 'boolean',
+			defaultStyle: {
+				bgcolor: combineRgb(102, 0, 0),
+			},
+			options: [mixerDropdown, ...faderDropdowns],
+			callback: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const currentOffair = self.getVariableValue(`fader_${mixerId}.${faderId}_offair`)
+				return Boolean(currentOffair)
+			},
+			subscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+
+				if (!mixers[mixerId]) return
+
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const path = `/audio/mixers/${mixerId}/faders/${faderId}/offair`
+
+				self.websocket.subscribe(path)
+
+				self.websocket.get(
+					path,
+					(response) => {
+						const offairState = z.boolean().parse(response.payload)
+						self.setVariableValues({
+							[`fader_${mixerId}.${faderId}_offair`]: offairState,
+						})
+						self.checkFeedbacks('new_fader_offair')
+					},
+					(response: { error: { message: string } }) => {
+						self.log('warn', `Failed fetching initial state for ${path}: ${response.error.message}`)
+					},
+				)
+			},
+		},
 		new_fader_level: {
-			name: 'Fader Level',
+			name: 'Fader State: Level',
 			type: 'value',
 			options: [mixerDropdown, ...faderDropdowns],
 			callback: ({ options }) => {
@@ -356,6 +398,7 @@ export function onSubscriptionUpdate(self: ModuleInstance, update: ResponseSubsc
 						z.string(),
 						z.object({
 							on: z.boolean().optional(),
+							offair: z.boolean().optional(),
 							_faderstart: z.boolean().optional(),
 							fader: z.number().optional(),
 						}),
