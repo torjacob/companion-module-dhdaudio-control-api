@@ -55,6 +55,27 @@ const BOOLEAN_PARAMS: BooleanParamConfig[] = [
 	},
 	{ id: 'new_fader_pfl1', name: 'Fader State: PFL1', pathKey: 'pfl1', variableSuffix: 'pfl1', varName: 'PFL1 State' },
 	{ id: 'new_fader_pfl2', name: 'Fader State: PFL2', pathKey: 'pfl2', variableSuffix: 'pfl2', varName: 'PFL2 State' },
+	{
+		id: 'new_fader_pool_available',
+		name: 'Fader State: Pool Available',
+		pathKey: '_pool_available',
+		variableSuffix: 'poolavailable',
+		varName: 'Pool State',
+	},
+	{
+		id: 'new_fader_readystate',
+		name: 'Fader State: Ready',
+		pathKey: '_readystate',
+		variableSuffix: 'readystate',
+		varName: 'Readystate',
+	},
+	{
+		id: 'new_fader_altinput',
+		name: 'Fader State: Altinput',
+		pathKey: 'altinput',
+		variableSuffix: 'altinput',
+		varName: 'Altinput State',
+	},
 ]
 
 export function init(
