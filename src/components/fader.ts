@@ -38,40 +38,40 @@ interface BooleanParamConfig {
 }
 
 const BOOLEAN_PARAMS: BooleanParamConfig[] = [
-	{ id: 'new_fader_on_off', name: 'Fader State: On', pathKey: 'on', variableSuffix: 'on', varName: 'On State' },
+	{ id: 'new_fader_on_off', name: 'On', pathKey: 'on', variableSuffix: 'on', varName: 'On State' },
 	{
 		id: 'new_fader_faderstart',
-		name: 'Fader State: Faderstart',
+		name: 'Faderstart',
 		pathKey: '_faderstart',
 		variableSuffix: 'faderstart',
 		varName: 'Faderstart State',
 	},
 	{
 		id: 'new_fader_offair',
-		name: 'Fader State: OffAir',
+		name: 'OffAir',
 		pathKey: 'offair',
 		variableSuffix: 'offair',
 		varName: 'OffAir State',
 	},
-	{ id: 'new_fader_pfl1', name: 'Fader State: PFL1', pathKey: 'pfl1', variableSuffix: 'pfl1', varName: 'PFL1 State' },
-	{ id: 'new_fader_pfl2', name: 'Fader State: PFL2', pathKey: 'pfl2', variableSuffix: 'pfl2', varName: 'PFL2 State' },
+	{ id: 'new_fader_pfl1', name: 'PFL1', pathKey: 'pfl1', variableSuffix: 'pfl1', varName: 'PFL1 State' },
+	{ id: 'new_fader_pfl2', name: 'PFL2', pathKey: 'pfl2', variableSuffix: 'pfl2', varName: 'PFL2 State' },
 	{
 		id: 'new_fader_pool_available',
-		name: 'Fader State: Pool Available',
+		name: 'Pool Available',
 		pathKey: '_pool_available',
 		variableSuffix: 'poolavailable',
 		varName: 'Pool State',
 	},
 	{
 		id: 'new_fader_readystate',
-		name: 'Fader State: Ready',
+		name: 'Ready',
 		pathKey: '_readystate',
 		variableSuffix: 'readystate',
 		varName: 'Readystate',
 	},
 	{
 		id: 'new_fader_altinput',
-		name: 'Fader State: Altinput',
+		name: 'Altinput',
 		pathKey: 'altinput',
 		variableSuffix: 'altinput',
 		varName: 'Altinput State',
@@ -149,16 +149,30 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 		}
 	})
 
-	const booleanDefinitions = BOOLEAN_PARAMS.reduce<CompanionFeedbackDefinitions>((acc, config) => {
-		acc[config.id] = {
-			name: config.name,
+	const stateDropdown: SomeCompanionFeedbackInputField = {
+		id: 'stateKey',
+		type: 'dropdown',
+		label: 'State',
+		default: BOOLEAN_PARAMS[0].pathKey,
+		choices: BOOLEAN_PARAMS.map((p) => ({ id: p.pathKey, label: p.name })),
+	}
+
+	return {
+		fader_state: {
+			name: 'Fader Boolean States',
 			type: 'boolean',
 			defaultStyle: { bgcolor: combineRgb(102, 0, 0) },
-			options: [mixerDropdown, ...faderDropdowns],
+			options: [mixerDropdown, ...faderDropdowns, stateDropdown],
 			callback: ({ options }) => {
 				const mixerId = `${options.mixerId ?? '0'}`
 				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
-				const currentVal = self.getVariableValue(`fader_${mixerId}.${faderId}_${config.variableSuffix}`)
+				const stateKey = `${options.stateKey ?? BOOLEAN_PARAMS[0].pathKey}`
+
+				// Find variable suffix from configuration
+				const config = BOOLEAN_PARAMS.find((p) => p.pathKey === stateKey)
+				const suffix = config?.variableSuffix ?? 'on'
+
+				const currentVal = self.getVariableValue(`fader_${mixerId}.${faderId}_${suffix}`)
 				return Boolean(currentVal)
 			},
 			subscribe: ({ options }) => {
@@ -166,18 +180,28 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 				if (!mixers[mixerId]) return
 
 				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
-				const path = `/audio/mixers/${mixerId}/faders/${faderId}/${config.pathKey}`
+				const stateKey = `${options.stateKey ?? BOOLEAN_PARAMS[0].pathKey}`
+				const path = `/audio/mixers/${mixerId}/faders/${faderId}/${stateKey}`
 
 				self.websocket.subscribe(path)
 				self.websocket.get(
 					path,
 					(response) => {
-						const parsedVal = z.boolean().parse(response.payload)
-						if (parsedVal !== undefined) {
+						const config = BOOLEAN_PARAMS.find((p) => p.pathKey === stateKey)
+						if (!config) return
+
+						let val: boolean | undefined
+						if (typeof response.payload === 'boolean') {
+							val = response.payload
+						} else if (typeof response.payload === 'number') {
+							val = response.payload === 1
+						}
+
+						if (val !== undefined) {
 							self.setVariableValues({
-								[`fader_${mixerId}.${faderId}_${config.variableSuffix}`]: parsedVal,
+								[`fader_${mixerId}.${faderId}_${config.variableSuffix}`]: val,
 							})
-							self.checkFeedbacks(config.id)
+							self.checkFeedbacks('fader_state')
 						}
 					},
 					(response: { error: { message: string } }) => {
@@ -185,12 +209,14 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 					},
 				)
 			},
-		}
-		return acc
-	}, {})
+			unsubscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const stateKey = `${options.stateKey ?? BOOLEAN_PARAMS[0].pathKey}`
 
-	return {
-		...booleanDefinitions,
+				self.websocket.unsubscribe(`/audio/mixers/${mixerId}/faders/${faderId}/${stateKey}`)
+			},
+		},
 		new_fader_level: {
 			name: 'Fader State: Level',
 			type: 'value',
@@ -231,6 +257,11 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 						self.log('warn', `Failed fetching initial level for ${levelPath}: ${response.error.message}`)
 					},
 				)
+			},
+			unsubscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				self.websocket.unsubscribe(`/audio/mixers/${mixerId}/faders/${faderId}/fader`)
 			},
 		},
 	}
