@@ -140,6 +140,7 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 			id: `faderId_m${mixerId}`,
 			type: 'dropdown',
 			label: 'Fader',
+			tooltip: 'Feedback must be "rebooted" for live updates to take effect after changig selected fader.',
 			default: faders[0]?.[0] ?? '0',
 			choices: faders.map(([fId, val]) => ({
 				id: fId,
@@ -161,6 +162,7 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 		fader_state: {
 			name: 'Fader Boolean States',
 			type: 'boolean',
+			description: 'All bool value states for faders ',
 			defaultStyle: { bgcolor: combineRgb(102, 0, 0) },
 			options: [mixerDropdown, ...faderDropdowns, stateDropdown],
 			callback: ({ options }) => {
