@@ -84,6 +84,14 @@ function genVariables(
 				variableId: `fader_${mixerId}.${faderId}_offair`,
 				name: `Fader ${mixerId}.${faderId} (${label}) OffAir State`,
 			},
+			{
+				variableId: `fader_${mixerId}.${faderId}_pfl1`,
+				name: `Fader ${mixerId}.${faderId} (${label}) PFL1 State`,
+			},
+			{
+				variableId: `fader_${mixerId}.${faderId}_pfl2`,
+				name: `Fader ${mixerId}.${faderId} (${label}) PFL2 State`,
+			},
 		]
 	})
 }
@@ -270,6 +278,82 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 					},
 					(response: { error: { message: string } }) => {
 						self.log('warn', `Failed fetching initial level for ${levelPath}: ${response.error.message}`)
+					},
+				)
+			},
+		},
+		new_fader_pfl1: {
+			name: 'Fader State: PFL1',
+			type: 'boolean',
+			defaultStyle: {
+				bgcolor: combineRgb(102, 0, 0),
+			},
+			options: [mixerDropdown, ...faderDropdowns],
+			callback: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const currentPfl1 = self.getVariableValue(`fader_${mixerId}.${faderId}_pfl1`)
+				return Boolean(currentPfl1)
+			},
+			subscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+
+				if (!mixers[mixerId]) return
+
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const path = `/audio/mixers/${mixerId}/faders/${faderId}/pfl1`
+
+				self.websocket.subscribe(path)
+
+				self.websocket.get(
+					path,
+					(response) => {
+						const pfl1State = z.boolean().parse(response.payload)
+						self.setVariableValues({
+							[`fader_${mixerId}.${faderId}_on`]: pfl1State,
+						})
+						self.checkFeedbacks('new_fader_pfl1')
+					},
+					(response: { error: { message: string } }) => {
+						self.log('warn', `Failed fetching initial state for ${path}: ${response.error.message}`)
+					},
+				)
+			},
+		},
+		new_fader_pfl2: {
+			name: 'Fader State: PFL2',
+			type: 'boolean',
+			defaultStyle: {
+				bgcolor: combineRgb(102, 0, 0),
+			},
+			options: [mixerDropdown, ...faderDropdowns],
+			callback: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const currentPfl2 = self.getVariableValue(`fader_${mixerId}.${faderId}_pfl2`)
+				return Boolean(currentPfl2)
+			},
+			subscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+
+				if (!mixers[mixerId]) return
+
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const path = `/audio/mixers/${mixerId}/faders/${faderId}/pfl2`
+
+				self.websocket.subscribe(path)
+
+				self.websocket.get(
+					path,
+					(response) => {
+						const pfl2State = z.boolean().parse(response.payload)
+						self.setVariableValues({
+							[`fader_${mixerId}.${faderId}_on`]: pfl2State,
+						})
+						self.checkFeedbacks('new_fader_pfl2')
+					},
+					(response: { error: { message: string } }) => {
+						self.log('warn', `Failed fetching initial state for ${path}: ${response.error.message}`)
 					},
 				)
 			},
