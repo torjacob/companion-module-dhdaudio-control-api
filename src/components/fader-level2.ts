@@ -6,9 +6,11 @@ import {
 	type CompanionFeedbackDefinitions,
 	type CompanionPresetDefinitions,
 	type CompanionVariableDefinition,
+	type CompanionVariableValues,
 	type SomeCompanionActionInputField,
 	type SomeCompanionFeedbackInputField,
 } from '@companion-module/base'
+import type { ResponseSubscriptionUpdate } from '@dhdaudio/control-api'
 import type { FaderRecord } from '../control-api/faders.js'
 import type { MixerRecord } from '../control-api/mixers.js'
 import type { ModuleInstance } from '../main.js'
@@ -26,7 +28,6 @@ function getFaderEntries(mixers: MixerRecord): Array<[string, string, FaderRecor
 		]),
 	)
 }
-
 export function init(
 	self: ModuleInstance,
 	mixers: MixerRecord,
@@ -38,6 +39,21 @@ export function init(
 } {
 	const faderEntries = getFaderEntries(mixers)
 
+	// 1. Seed initial variable values into Companion memory from the mixers payload
+	const initialValues: CompanionVariableValues = {}
+	faderEntries.forEach(([mixerId, faderId, fader]) => {
+		if (fader.on !== undefined) {
+			initialValues[`fader_${mixerId}.${faderId}_on`] = fader.on
+		}
+		if (fader.fader !== undefined) {
+			initialValues[`fader_${mixerId}.${faderId}_level`] = fader.fader
+		}
+	})
+	if (Object.keys(initialValues).length > 0) {
+		self.setVariableValues(initialValues)
+	}
+
+	// 2. Generate definitions
 	const variables = genVariables(faderEntries)
 	const feedback = genFeedbacks(self, mixers)
 	const actions = genActions(self, mixers)
@@ -59,6 +75,10 @@ function genVariables(
 			{
 				variableId: `fader_${mixerId}.${faderId}_on`,
 				name: `Fader ${mixerId}.${faderId} (${label}) On State`,
+			},
+			{
+				variableId: `fader_${mixerId}.${faderId}_faderstart`,
+				name: `Fader ${mixerId}.${faderId} (${label}) Faderstart State`,
 			},
 		]
 	})
@@ -105,7 +125,7 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 				const mixerId = `${options.mixerId ?? '0'}`
 				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
 				const currentOn = self.getVariableValue(`fader_${mixerId}.${faderId}_on`)
-				return currentOn === true || currentOn === 'true'
+				return Boolean(currentOn)
 			},
 			subscribe: ({ options }) => {
 				const mixerId = `${options.mixerId ?? '0'}`
@@ -120,24 +140,94 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 				self.websocket.get(
 					path,
 					(response) => {
-						let onState: boolean | undefined
-
-						if (typeof response.payload === 'boolean') {
-							onState = response.payload
-						} else if (typeof response.payload === 'object' && response.payload !== null) {
-							const parsed = z.object({ on: z.boolean() }).safeParse(response.payload)
-							if (parsed.success) onState = parsed.data.on
-						}
-
-						if (onState !== undefined) {
-							self.setVariableValues({
-								[`fader_${mixerId}.${faderId}_on`]: onState,
-							})
-							self.checkFeedbacks('new_fader_on_off')
-						}
+						const onState = z.boolean().parse(response.payload)
+						self.setVariableValues({
+							[`fader_${mixerId}.${faderId}_on`]: onState,
+						})
+						self.checkFeedbacks('new_fader_on_off')
 					},
 					(response: { error: { message: string } }) => {
 						self.log('warn', `Failed fetching initial state for ${path}: ${response.error.message}`)
+					},
+				)
+			},
+		},
+		new_fader_faderstart: {
+			name: 'Fader faderstart (On / Off)',
+			type: 'boolean',
+			defaultStyle: {
+				bgcolor: combineRgb(102, 0, 0),
+			},
+			options: [mixerDropdown, ...faderDropdowns],
+			callback: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const currentFaderstart = self.getVariableValue(`fader_${mixerId}.${faderId}_faderstart`)
+				return Boolean(currentFaderstart)
+			},
+			subscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+
+				if (!mixers[mixerId]) return
+
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const path = `/audio/mixers/${mixerId}/faders/${faderId}/_faderstart`
+
+				self.websocket.subscribe(path)
+
+				self.websocket.get(
+					path,
+					(response) => {
+						const faderstartState = z.boolean().parse(response.payload)
+						self.setVariableValues({
+							[`fader_${mixerId}.${faderId}_faderstart`]: faderstartState,
+						})
+						self.checkFeedbacks('new_fader_faderstart')
+					},
+					(response: { error: { message: string } }) => {
+						self.log('warn', `Failed fetching initial state for ${path}: ${response.error.message}`)
+					},
+				)
+			},
+		},
+		new_fader_level: {
+			name: 'Fader Level',
+			type: 'value',
+			options: [mixerDropdown, ...faderDropdowns],
+			callback: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const level = self.getVariableValue(`fader_${mixerId}.${faderId}_level`)
+				return typeof level === 'number' || typeof level === 'string' ? level : -159
+			},
+			subscribe: ({ options }) => {
+				const mixerId = `${options.mixerId ?? '0'}`
+				if (!mixers[mixerId]) return
+
+				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
+				const levelPath = `/audio/mixers/${mixerId}/faders/${faderId}/fader`
+
+				self.websocket.subscribe(levelPath)
+				self.websocket.get(
+					levelPath,
+					(response) => {
+						let levelVal: number | undefined
+						if (typeof response.payload === 'number') {
+							levelVal = response.payload
+						} else if (typeof response.payload === 'object' && response.payload !== null) {
+							const parsed = z.object({ fader: z.number() }).safeParse(response.payload)
+							if (parsed.success) levelVal = parsed.data.fader
+						}
+
+						if (levelVal !== undefined) {
+							self.setVariableValues({
+								[`fader_${mixerId}.${faderId}_level`]: levelVal,
+							})
+							self.checkFeedbacks('new_fader_level')
+						}
+					},
+					(response: { error: { message: string } }) => {
+						self.log('warn', `Failed fetching initial level for ${levelPath}: ${response.error.message}`)
 					},
 				)
 			},
@@ -252,4 +342,47 @@ function genPresets(faderEntries: Array<[string, string, FaderRecord[string]]>):
 			} satisfies CompanionButtonPresetDefinition,
 		}
 	}, {})
+}
+
+export function onSubscriptionUpdate(self: ModuleInstance, update: ResponseSubscriptionUpdate): void {
+	const rawPayload = (update as Record<string, unknown>).payload ?? update
+
+	const updateParser = z.object({
+		audio: z.object({
+			mixers: z.record(
+				z.string(),
+				z.object({
+					faders: z.record(
+						z.string(),
+						z.object({
+							on: z.boolean().optional(),
+							_faderstart: z.boolean().optional(),
+							fader: z.number().optional(),
+						}),
+					),
+				}),
+			),
+		}),
+	})
+
+	const parsed = updateParser.safeParse(rawPayload)
+	if (!parsed.success) return
+
+	const variableUpdates: CompanionVariableValues = {}
+
+	Object.entries(parsed.data.audio.mixers).forEach(([mixerId, mixer]) => {
+		Object.entries(mixer.faders).forEach(([faderId, fader]) => {
+			if (fader.on !== undefined) {
+				variableUpdates[`fader_${mixerId}.${faderId}_on`] = fader.on
+			}
+			if (fader.fader !== undefined) {
+				variableUpdates[`fader_${mixerId}.${faderId}_level`] = fader.fader
+			}
+		})
+	})
+
+	if (Object.keys(variableUpdates).length > 0) {
+		self.setVariableValues(variableUpdates)
+		self.checkFeedbacks()
+	}
 }
