@@ -87,6 +87,22 @@ const VALUE_PARAMS: ValueParamConfig[] = [
 		varName: 'Label',
 		fallbackValue: '',
 	},
+	{
+		id: 'fader_sourceid',
+		name: 'Source ID',
+		pathKey: 'sourceid',
+		variableSuffix: 'sourceid',
+		varName: 'Source ID',
+		fallbackValue: 0,
+	},
+	{
+		id: 'fader_vcagroup',
+		name: 'VCA Group',
+		pathKey: 'vcagroup',
+		variableSuffix: 'vcagroup',
+		varName: 'VCA Group',
+		fallbackValue: 0,
+	},
 ]
 
 interface BooleanParamConfig {
