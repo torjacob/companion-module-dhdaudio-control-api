@@ -35,10 +35,26 @@ interface ValueParamConfig {
 	pathKey: string
 	variableSuffix: string
 	varName: string
-	fallbackValue: number
+	fallbackValue: number | string
 }
 
 const VALUE_PARAMS: ValueParamConfig[] = [
+	{
+		id: 'fader_channelcnt',
+		name: 'Channel Count',
+		pathKey: '_channelcnt',
+		variableSuffix: 'channelcnt',
+		varName: 'Channel Count',
+		fallbackValue: 1,
+	},
+	{
+		id: 'fader_defaultlabel',
+		name: 'Default Label',
+		pathKey: '_defaultlabel',
+		variableSuffix: 'defaultlabel',
+		varName: 'Default Label',
+		fallbackValue: '',
+	},
 	{
 		id: 'fader_level',
 		name: 'Level',
@@ -46,6 +62,30 @@ const VALUE_PARAMS: ValueParamConfig[] = [
 		variableSuffix: 'level',
 		varName: 'Level',
 		fallbackValue: -159,
+	},
+	{
+		id: 'fader_lastloadedsnap',
+		name: 'Last Loaded Snap',
+		pathKey: '_lastloadedsnap',
+		variableSuffix: 'lastloadedsnap',
+		varName: 'Last Loaded Snap',
+		fallbackValue: '',
+	},
+	{
+		id: 'fader_usecleanfeed',
+		name: 'Use Cleanfeed',
+		pathKey: '_usecleanfeed',
+		variableSuffix: '_usecleanfeed',
+		varName: 'usecleanfeed',
+		fallbackValue: 0,
+	},
+	{
+		id: 'fader_label',
+		name: 'Label',
+		pathKey: 'label',
+		variableSuffix: 'label',
+		varName: 'Label',
+		fallbackValue: '',
 	},
 ]
 
@@ -218,10 +258,10 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 		choices: BOOLEAN_PARAMS.map((p) => ({ id: p.pathKey, label: p.name })),
 	}
 
-	const valueStateDropdown: SomeCompanionFeedbackInputField = {
+	const valueDropdown: SomeCompanionFeedbackInputField = {
 		id: 'valueKey',
 		type: 'dropdown',
-		label: 'Value State',
+		label: 'Value',
 		default: VALUE_PARAMS[0].pathKey,
 		choices: VALUE_PARAMS.map((p) => ({ id: p.pathKey, label: p.name })),
 	}
@@ -288,9 +328,9 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 			},
 		},
 		fader_value: {
-			name: 'Fader Value States',
+			name: 'Fader Values',
 			type: 'value',
-			options: [mixerDropdown, ...faderDropdowns, valueStateDropdown],
+			options: [mixerDropdown, ...faderDropdowns, valueDropdown],
 			callback: ({ options }) => {
 				const mixerId = `${options.mixerId ?? '0'}`
 				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
@@ -318,12 +358,15 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 						const config = VALUE_PARAMS.find((p) => p.pathKey === valueKey)
 						if (!config) return
 
-						let val: number | undefined
-						if (typeof response.payload === 'number') {
+						let val: string | number | undefined
+						if (typeof response.payload === 'number' || typeof response.payload === 'string') {
 							val = response.payload
 						} else if (typeof response.payload === 'object' && response.payload !== null) {
 							const p = response.payload as Record<string, unknown>
-							if (typeof p[valueKey] === 'number') val = p[valueKey]
+							const fieldVal = p[valueKey]
+							if (typeof fieldVal === 'number' || typeof fieldVal === 'string') {
+								val = fieldVal
+							}
 						}
 
 						if (val !== undefined) {
@@ -343,53 +386,6 @@ function genFeedbacks(self: ModuleInstance, mixers: MixerRecord): CompanionFeedb
 				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
 				const valueKey = `${options.valueKey ?? VALUE_PARAMS[0].pathKey}`
 				self.websocket.unsubscribe(`/audio/mixers/${mixerId}/faders/${faderId}/${valueKey}`)
-			},
-		},
-		fader_level: {
-			name: 'Fader State: Level',
-			type: 'value',
-			options: [mixerDropdown, ...faderDropdowns],
-			callback: ({ options }) => {
-				const mixerId = `${options.mixerId ?? '0'}`
-				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
-				const level = self.getVariableValue(`fader_${mixerId}.${faderId}_level`)
-				return typeof level === 'number' || typeof level === 'string' ? level : -159
-			},
-			subscribe: ({ options }) => {
-				const mixerId = `${options.mixerId ?? '0'}`
-				if (!mixers[mixerId]) return
-
-				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
-				const levelPath = `/audio/mixers/${mixerId}/faders/${faderId}/fader`
-
-				self.websocket.subscribe(levelPath)
-				self.websocket.get(
-					levelPath,
-					(response) => {
-						let levelVal: number | undefined
-						if (typeof response.payload === 'number') {
-							levelVal = response.payload
-						} else if (typeof response.payload === 'object' && response.payload !== null) {
-							const parsed = z.object({ fader: z.number() }).safeParse(response.payload)
-							if (parsed.success) levelVal = parsed.data.fader
-						}
-
-						if (levelVal !== undefined) {
-							self.setVariableValues({
-								[`fader_${mixerId}.${faderId}_level`]: levelVal,
-							})
-							self.checkFeedbacks('fader_level')
-						}
-					},
-					(response: { error: { message: string } }) => {
-						self.log('warn', `Failed fetching initial level for ${levelPath}: ${response.error.message}`)
-					},
-				)
-			},
-			unsubscribe: ({ options }) => {
-				const mixerId = `${options.mixerId ?? '0'}`
-				const faderId = `${options[`faderId_m${mixerId}`] ?? '0'}`
-				self.websocket.unsubscribe(`/audio/mixers/${mixerId}/faders/${faderId}/fader`)
 			},
 		},
 	}
