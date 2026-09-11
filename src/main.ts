@@ -24,7 +24,7 @@ import * as snapshot from './components/snapshot.js'
 import * as logics from './components/logics.js'
 import * as genericAction from './components/generic-action.js'
 import { fetchMixers } from './control-api/mixers.js'
-import * as faderLevel2 from './components/fader-level2.js'
+import * as fader from './components/fader.js'
 
 const CONNECTION_TIMEOUT_MS = 5000
 
@@ -132,11 +132,11 @@ export class ModuleInstance extends InstanceBase<ModuleConfig> {
 				this.assertCurrentAttempt(attemptId)
 
 				if (mixers) {
-					const faderLevel2Config = faderLevel2.init(this, mixers)
-					varDefinitions.push(...faderLevel2Config.variables)
-					feedbackDefinitions = { ...feedbackDefinitions, ...faderLevel2Config.feedback }
-					actionDefinitions = { ...actionDefinitions, ...faderLevel2Config.actions }
-					presetDefinitions = { ...presetDefinitions, ...faderLevel2Config.presets }
+					const faderConfig = fader.init(this, mixers)
+					varDefinitions.push(...faderConfig.variables)
+					feedbackDefinitions = { ...feedbackDefinitions, ...faderConfig.feedback }
+					actionDefinitions = { ...actionDefinitions, ...faderConfig.actions }
+					presetDefinitions = { ...presetDefinitions, ...faderConfig.presets }
 				}
 
 				if (channels) {
